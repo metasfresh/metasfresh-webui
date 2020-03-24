@@ -22,7 +22,6 @@
 
 package de.metas.banking.process;
 
-import java.math.BigDecimal;
 import java.util.Set;
 
 import org.adempiere.util.lang.impl.TableRecordReference;
@@ -38,10 +37,7 @@ import de.metas.banking.service.IBankStatementDAO;
 import de.metas.bpartner.BPartnerId;
 import de.metas.document.engine.DocStatus;
 import de.metas.i18n.IMsgBL;
-import de.metas.money.CurrencyId;
-import de.metas.money.Money;
 import de.metas.payment.PaymentId;
-import de.metas.payment.api.IPaymentDAO;
 import de.metas.process.IProcessPrecondition;
 import de.metas.process.IProcessPreconditionsContext;
 import de.metas.process.JavaProcess;
@@ -62,13 +58,13 @@ public class C_BankStatementLine_AddBpartnerAndPayment extends JavaProcess imple
 
 	private static final String C_BPartner_ID_PARAM_NAME = "C_BPartner_ID";
 	@Param(parameterName = C_BPartner_ID_PARAM_NAME)
-	private BPartnerId bPartnerId;
+	private BPartnerId bpartnerId;
 
 	private static final String C_Payment_ID_PARAM_NAME = "C_Payment_ID";
 	@Param(parameterName = C_Payment_ID_PARAM_NAME)
 	private PaymentId paymentId;
 
-	private final IMsgBL iMsgBL = Services.get(IMsgBL.class);
+	private final IMsgBL msgBL = Services.get(IMsgBL.class);
 	private final IBankStatementDAO bankStatementDAO = Services.get(IBankStatementDAO.class);
 	private final IBankStatmentPaymentBL bankStatementPaymentBL = Services.get(IBankStatmentPaymentBL.class);
 
@@ -89,26 +85,26 @@ public class C_BankStatementLine_AddBpartnerAndPayment extends JavaProcess imple
 		final DocStatus docStatus = DocStatus.ofCode(selectedBankStatement.getDocStatus());
 		if (!docStatus.isCompleted() && !docStatus.isDraftedOrInProgress())
 		{
-			return ProcessPreconditionsResolution.reject(iMsgBL.getTranslatableMsgText(BANK_STATEMENT_MUST_BE_COMPLETED_OR_IN_PROGRESS_MSG));
+			return ProcessPreconditionsResolution.reject(msgBL.getTranslatableMsgText(BANK_STATEMENT_MUST_BE_COMPLETED_OR_IN_PROGRESS_MSG));
 		}
 
 		// there should be a single line selected
 		final Set<TableRecordReference> selectedLineReferences = context.getSelectedIncludedRecords();
 		if (selectedLineReferences.size() != 1)
 		{
-			return ProcessPreconditionsResolution.reject(iMsgBL.getTranslatableMsgText(A_SINGLE_LINE_SHOULD_BE_SELECTED_MSG));
+			return ProcessPreconditionsResolution.reject(msgBL.getTranslatableMsgText(A_SINGLE_LINE_SHOULD_BE_SELECTED_MSG));
 		}
 
 		final TableRecordReference reference = selectedLineReferences.iterator().next();
 		final I_C_BankStatementLine line = reference.getModel(I_C_BankStatementLine.class);
 		if (line == null)
 		{
-			return ProcessPreconditionsResolution.reject(iMsgBL.getTranslatableMsgText(A_SINGLE_LINE_SHOULD_BE_SELECTED_MSG));
+			return ProcessPreconditionsResolution.reject(msgBL.getTranslatableMsgText(A_SINGLE_LINE_SHOULD_BE_SELECTED_MSG));
 		}
 
 		if (line.getC_Payment_ID() > 0)
 		{
-			return ProcessPreconditionsResolution.reject(iMsgBL.getTranslatableMsgText(LINE_SHOULD_NOT_HAVE_A_PAYMENT_MSG));
+			return ProcessPreconditionsResolution.reject(msgBL.getTranslatableMsgText(LINE_SHOULD_NOT_HAVE_A_PAYMENT_MSG));
 		}
 
 		return ProcessPreconditionsResolution.accept();
@@ -117,13 +113,13 @@ public class C_BankStatementLine_AddBpartnerAndPayment extends JavaProcess imple
 	@ProcessParamLookupValuesProvider(parameterName = C_Payment_ID_PARAM_NAME, numericKey = true, lookupSource = DocumentLayoutElementFieldDescriptor.LookupSource.lookup, lookupTableName = I_C_Payment.Table_Name)
 	private LookupValuesList paymentLookupProvider()
 	{
-		final I_C_BankStatementLine line = getSelectedBankStatementLine();
-		final CurrencyId currencyId = CurrencyId.ofRepoId(line.getC_Currency_ID());
-		final boolean isReceipt = line.getStmtAmt().signum() >= 0;
-		final BigDecimal paymentAmount = isReceipt ? line.getStmtAmt() : line.getStmtAmt().negate();
-		final Money money = Money.of(paymentAmount, currencyId);
+		if (bpartnerId == null)
+		{
+			return LookupValuesList.EMPTY;
+		}
 
-		final ImmutableSet<PaymentId> paymentIds = Services.get(IPaymentDAO.class).retrieveAllMatchingPayments(isReceipt, bPartnerId, money);
+		final I_C_BankStatementLine line = getSelectedBankStatementLine();
+		final ImmutableSet<PaymentId> paymentIds = bankStatementPaymentBL.getAllNotReconciledPaymentsMatching(line, bpartnerId);
 
 		return LookupDataSourceFactory.instance.searchInTableLookup(I_C_Payment.Table_Name).findByIdsOrdered(paymentIds);
 	}
@@ -134,7 +130,7 @@ public class C_BankStatementLine_AddBpartnerAndPayment extends JavaProcess imple
 		final I_C_BankStatement bankStatement = getSelectedBankStatement();
 		final I_C_BankStatementLine bankStatementLine = getSelectedBankStatementLine();
 
-		bankStatementLine.setC_BPartner_ID(bPartnerId.getRepoId());
+		bankStatementLine.setC_BPartner_ID(bpartnerId.getRepoId());
 		bankStatementPaymentBL.setOrCreateAndLinkPaymentToBankStatementLine(bankStatement, bankStatementLine, paymentId);
 
 		return MSG_OK;

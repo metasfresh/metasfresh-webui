@@ -6,7 +6,7 @@
 The code from this repo is now maintained in https://github.com/metasfresh/metasfresh
 
 
-# metasfresh-webui-api
+# metasfresh-webui-api23
 
 This repo contains the API service of our webui. The frontend can be found in its [own repository](https://github.com/metasfresh/metasfresh-webui-frontend).
 

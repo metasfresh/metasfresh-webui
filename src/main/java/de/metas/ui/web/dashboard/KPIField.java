@@ -9,6 +9,9 @@ import java.util.List;
 
 import org.compiere.util.DisplayType;
 import org.compiere.util.TimeUtil;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InvalidAggregationPathException;
 import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.slf4j.Logger;
 
@@ -120,7 +123,44 @@ public class KPIField
 			}
 		}
 
-		return (containingAggName, bucket) -> bucket.getProperty(containingAggName, path);
+		return (containingAggName, bucket) -> getProperty(bucket, containingAggName, path);
+	}
+
+	private static Object getProperty(
+			final MultiBucketsAggregation.Bucket bucket,
+			final String containingAggName,
+			final List<String> path)
+	{
+		if (path.isEmpty())
+		{
+			return bucket;
+		}
+
+		final Aggregations aggregations = bucket.getAggregations();
+		String aggName = path.get(0);
+		if (aggName.equals("_count"))
+		{
+			if (path.size() > 1)
+			{
+				throw new InvalidAggregationPathException("_count must be the last element in the path");
+			}
+			return bucket.getDocCount();
+		}
+		else if (aggName.equals("_key"))
+		{
+			if (path.size() > 1)
+			{
+				throw new InvalidAggregationPathException("_key must be the last element in the path");
+			}
+			return bucket.getKey();
+		}
+		InternalAggregation aggregation = aggregations.get(aggName);
+		if (aggregation == null)
+		{
+			throw new InvalidAggregationPathException(
+					"Cannot find an aggregation named [" + aggName + "] in [" + containingAggName + "]");
+		}
+		return aggregation.getProperty(path.subList(1, path.size()));
 	}
 
 	public final Object convertValueToJson(final Object value, @NonNull final JSONOptions jsonOpts)
@@ -214,23 +254,20 @@ public class KPIField
 				{
 					final Date date = TimeUtil.asDate(DateTimeConverters.fromObjectToZonedDateTime(value));
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.Date, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.Date, language).format(date);
 				}
 				else if (value instanceof Date)
 				{
 					final Date date = (Date)value;
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.Date, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.Date, language).format(date);
 				}
 				else if (value instanceof Number)
 				{
 					final long millis = ((Number)value).longValue();
 					final Date date = new Date(millis);
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.Date, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.Date, language).format(date);
 				}
 				else
 				{
@@ -243,23 +280,20 @@ public class KPIField
 				{
 					final Date date = TimeUtil.asDate(DateTimeConverters.fromObjectToZonedDateTime(value));
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.DateTime, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.DateTime, language).format(date);
 				}
 				else if (value instanceof Date)
 				{
 					final Date date = (Date)value;
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.DateTime, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.DateTime, language).format(date);
 				}
 				else if (value instanceof Number)
 				{
 					final long millis = ((Number)value).longValue();
 					final Date date = new Date(millis);
 					final Language language = Language.getLanguage(jsonOpts.getAdLanguage());
-					return DisplayType.getDateFormat(DisplayType.DateTime, language)
-							.format(date);
+					return DisplayType.getDateFormat(DisplayType.DateTime, language).format(date);
 				}
 				else
 				{
@@ -281,13 +315,8 @@ public class KPIField
 	@Override
 	public String toString()
 	{
-		return MoreObjects.toStringHelper(this)
-				.omitNullValues()
-				.add("fieldName", fieldName)
-				.add("groupBy", groupBy)
-				.add("esPath", esPath)
-				.add("valueType", valueType)
-				.toString();
+		return MoreObjects.toStringHelper(this).omitNullValues().add("fieldName", fieldName).add("groupBy", groupBy)
+				.add("esPath", esPath).add("valueType", valueType).toString();
 	}
 
 	public String getFieldName()

@@ -135,7 +135,7 @@ public class FullTextSearchLookupDescriptor implements ISqlLookupDescriptor, Loo
 				.setQuery(query)
 				.setExplain(logger.isTraceEnabled())
 				.setSize(maxSize)
-				.addField(esKeyColumnName)
+				.storedFields(esKeyColumnName)
 				.get();
 		logger.trace("ES response: {}", searchResponse);
 

@@ -114,7 +114,7 @@ public class FullTextSearchSqlDocumentFilterConverter implements SqlDocumentFilt
 
 	private int extractId(final SearchHit hit, final String esKeyColumnName)
 	{
-		final Map<String, Object> source = hit.getSource();
+		final Map<String, Object> source = hit.getSourceAsMap();
 		return NumberUtils.asInt(source.get(esKeyColumnName), -1);
 	}
 

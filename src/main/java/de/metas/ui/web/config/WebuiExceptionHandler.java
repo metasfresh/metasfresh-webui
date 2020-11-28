@@ -15,7 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.adempiere.exceptions.AdempiereException;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.web.ErrorAttributes;
+import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -140,23 +141,23 @@ public class WebuiExceptionHandler implements ErrorAttributes, HandlerExceptionR
 	}
 
 	@Override
-	public Map<String, Object> getErrorAttributes(final RequestAttributes requestAttributes, final boolean includeStackTrace)
+	public Map<String, Object> getErrorAttributes(final WebRequest request, final boolean includeStackTrace)
 	{
 		final Map<String, Object> errorAttributes = new LinkedHashMap<>();
 		errorAttributes.put(ATTR_Timestamp, ZonedDateTime.now());
-		addStatus(errorAttributes, requestAttributes);
-		addErrorDetails(errorAttributes, requestAttributes, includeStackTrace);
-		addPath(errorAttributes, requestAttributes);
+		addStatus(errorAttributes, request);
+		addErrorDetails(errorAttributes, request, includeStackTrace);
+		addPath(errorAttributes, request);
 		return errorAttributes;
 	}
 
-	private void addStatus(final Map<String, Object> errorAttributes, final RequestAttributes requestAttributes)
+	private void addStatus(final Map<String, Object> errorAttributes, final WebRequest request)
 	{
 		Integer status = null;
 
 		//
 		// Extract HTTP status from EXCEPTION_HTTPSTATUS map
-		final Throwable error = getError(requestAttributes);
+		final Throwable error = getError(request);
 		if (error != null)
 		{
 			final Class<? extends Throwable> errorClass = error.getClass();
@@ -172,7 +173,7 @@ public class WebuiExceptionHandler implements ErrorAttributes, HandlerExceptionR
 		// Extract HTTP status from attributes
 		if (status == null)
 		{
-			status = getAttribute(requestAttributes, RequestDispatcher.ERROR_STATUS_CODE);
+			status = getAttribute(request, RequestDispatcher.ERROR_STATUS_CODE);
 		}
 
 		if (status == null)
@@ -198,12 +199,12 @@ public class WebuiExceptionHandler implements ErrorAttributes, HandlerExceptionR
 		return baseClass.isAssignableFrom(clazz);
 	}
 
-	private void addErrorDetails(final Map<String, Object> errorAttributes, final RequestAttributes requestAttributes, final boolean includeStackTrace)
+	private void addErrorDetails(final Map<String, Object> errorAttributes, final WebRequest request, final boolean includeStackTrace)
 	{
 		//
 		// Get exception and
 		// Set "exception" attribute.
-		Throwable error = getError(requestAttributes);
+		Throwable error = getError(request);
 		if (error != null)
 		{
 			while (error instanceof ServletException && error.getCause() != null)
@@ -220,7 +221,7 @@ public class WebuiExceptionHandler implements ErrorAttributes, HandlerExceptionR
 
 		//
 		// Set "message" attribute
-		final Object message = getAttribute(requestAttributes, RequestDispatcher.ERROR_MESSAGE);
+		final Object message = getAttribute(request, RequestDispatcher.ERROR_MESSAGE);
 		if ((!StringUtils.isEmpty(message) || errorAttributes.get(ATTR_Message) == null)
 				&& !(error instanceof BindingResult))
 		{
@@ -269,12 +270,12 @@ public class WebuiExceptionHandler implements ErrorAttributes, HandlerExceptionR
 	}
 
 	@Override
-	public Throwable getError(final RequestAttributes requestAttributes)
+	public Throwable getError(final WebRequest request)
 	{
-		Throwable exception = getAttribute(requestAttributes, REQUEST_ATTR_EXCEPTION);
+		Throwable exception = getAttribute(request, REQUEST_ATTR_EXCEPTION);
 		if (exception == null)
 		{
-			exception = getAttribute(requestAttributes, RequestDispatcher.ERROR_EXCEPTION);
+			exception = getAttribute(request, RequestDispatcher.ERROR_EXCEPTION);
 		}
 
 		if (exception != null)

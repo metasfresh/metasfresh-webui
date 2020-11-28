@@ -15,13 +15,12 @@ import org.compiere.Adempiere.RunMode;
 import org.compiere.model.ModelValidationEngine;
 import org.compiere.util.Env;
 import org.compiere.util.Ini;
-import org.elasticsearch.common.logging.ESLoggerFactory;
-import org.elasticsearch.common.logging.slf4j.Slf4jESLoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.context.embedded.EmbeddedServletContainerCustomizer;
-import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -41,6 +40,7 @@ import de.metas.ui.web.session.WebRestApiContextProvider;
 import de.metas.ui.web.window.model.DocumentInterfaceWrapperHelper;
 import de.metas.util.Check;
 import de.metas.util.Services;
+import lombok.NonNull;
 
 /*
  * #%L
@@ -89,8 +89,8 @@ public class WebRestApiApplication
 			System.setProperty("PropertyFile", "./metasfresh.properties");
 		}
 
-		// Make sure slf4j is used (by default, in v2.4.4 log4j is used, see https://github.com/metasfresh/metasfresh-webui-api/issues/757)
-		ESLoggerFactory.setDefaultFactory(new Slf4jESLoggerFactory());
+		// Make sure slf4j is used (by default, in v2.4.4 log4j is used
+		// https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/_using_another_logger.html
 
 		try (final IAutoCloseable c = ModelValidationEngine.postponeInit())
 		{
@@ -104,7 +104,7 @@ public class WebRestApiApplication
 
 			new SpringApplicationBuilder(WebRestApiApplication.class)
 					.headless(Boolean.parseBoolean(headless)) // we need headless=false for initial connection setup popup (if any), usually this only applies on dev workstations.
-					.web(true)
+					.web(WebApplicationType.SERVLET)
 					.profiles(activeProfiles.toArray(new String[0]))
 					.beanNameGenerator(new MetasfreshBeanNameGenerator())
 					.run(args);
@@ -149,18 +149,23 @@ public class WebRestApiApplication
 	}
 
 	@Bean
-	public EmbeddedServletContainerCustomizer servletContainerCustomizer()
+	public WebServerFactoryCustomizer<TomcatServletWebServerFactory> webServerFactoryCustomizer()
 	{
-		return servletContainer -> {
-			final TomcatEmbeddedServletContainerFactory tomcatContainerFactory = (TomcatEmbeddedServletContainerFactory)servletContainer;
-			tomcatContainerFactory.addConnectorCustomizers(connector -> {
-				final AbstractHttp11Protocol<?> httpProtocol = (AbstractHttp11Protocol<?>)connector.getProtocolHandler();
-				httpProtocol.setCompression("on");
-				httpProtocol.setCompressionMinSize(256);
-				final String mimeTypes = httpProtocol.getCompressibleMimeType();
-				final String mimeTypesWithJson = mimeTypes + "," + MediaType.APPLICATION_JSON_VALUE + ",application/javascript";
-				httpProtocol.setCompressibleMimeType(mimeTypesWithJson);
-			});
+		return new WebServerFactoryCustomizer<TomcatServletWebServerFactory>()
+		{
+			@Override
+			public void customize(@NonNull final TomcatServletWebServerFactory factory)
+			{ // could probably be done via functional interface, but this way imho it's clearer..in ten years when we need to adopt to another breaking API change.
+				factory.addConnectorCustomizers(connector -> {
+					final AbstractHttp11Protocol<?> httpProtocol = (AbstractHttp11Protocol<?>)connector.getProtocolHandler();
+					httpProtocol.setCompression("on");
+					httpProtocol.setCompressionMinSize(256);
+					final String mimeTypes = httpProtocol.getCompressibleMimeType();
+					final String mimeTypesWithJson = mimeTypes + "," + MediaType.APPLICATION_JSON_VALUE + ",application/javascript";
+					httpProtocol.setCompressibleMimeType(mimeTypesWithJson);
+
+				});
+			}
 		};
 	}
 

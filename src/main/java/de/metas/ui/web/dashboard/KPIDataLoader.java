@@ -16,10 +16,15 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
+import org.elasticsearch.common.xcontent.DeprecationHandler;
+import org.elasticsearch.common.xcontent.NamedXContentRegistry;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.elasticsearch.search.aggregations.bucket.MultiBucketsAggregation.Bucket;
 import org.elasticsearch.search.aggregations.metrics.NumericMetricsAggregation;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 
 import com.google.common.base.Stopwatch;
@@ -231,9 +236,14 @@ public class KPIDataLoader
 		{
 			logger.trace("Executing: \n{}", esQueryParsed);
 
+			final XContentParser parser = XContentType.JSON.xContent().createParser(
+					NamedXContentRegistry.EMPTY,
+					DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
+					esQueryParsed);
+
 			response = elasticsearchClient.prepareSearch(kpi.getESSearchIndex())
 					.setTypes(kpi.getESSearchTypes())
-					.setSource(esQueryParsed)
+					.setSource(SearchSourceBuilder.fromXContent(parser))
 					// .setExplain(true) // enable it only for debugging
 					.get();
 

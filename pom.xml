@@ -18,7 +18,7 @@
 
 	<properties>
 
-		<spring-boot.version>1.5.3.RELEASE</spring-boot.version>
+		<spring-boot.version>2.2.4.RELEASE</spring-boot.version>
 
 		<!-- See http://www.mojohaus.org/versions-maven-plugin/examples/update-properties.html 
 			and http://stackoverflow.com/questions/3628471/maven-versions-plugin-not-picking-up-properties-from-parent -->
@@ -50,7 +50,7 @@
 		<!-- Spring -->
 		<dependency>
 			<groupId>org.springframework.session</groupId>
-			<artifactId>spring-session</artifactId>
+			<artifactId>spring-session-core</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -206,6 +206,16 @@
 			<!-- Required for elasticsearch -->
 			<groupId>net.java.dev.jna</groupId>
 			<artifactId>jna</artifactId>
+		</dependency>
+
+		<!-- https://www.elastic.co/guide/en/elasticsearch/client/java-api/current/_using_another_logger.html -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-to-slf4j</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
 		</dependency>
 
 		<!-- Swagger -->

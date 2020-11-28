@@ -244,7 +244,7 @@ public class DebugRestController
 	public void setTraceSqlQueries(
 
 			@ApiParam(value = "If Enabled, all SQL queries are logged with loglevel=WARN, or if the system property <code>" + IQueryStatisticsLogger.SYSTEM_PROPERTY_LOG_TO_SYSTEM_ERROR + "</code> is set to <code>true</code>, they will be written to std-err.", //
-					allowEmptyValue = false) //
+					required = true) //
 			@RequestParam("enabled") final boolean enabled)
 	{
 		userSession.assertLoggedIn();
